@@ -22,9 +22,7 @@ const awsmobile = {
     },
     "federationTarget": "COGNITO_USER_POOLS",
     "aws_cognito_username_attributes": [],
-    "aws_cognito_social_providers": [
-        "GOOGLE"
-    ],
+    "aws_cognito_social_providers": [],
     "aws_cognito_signup_attributes": [
         "EMAIL"
     ],
