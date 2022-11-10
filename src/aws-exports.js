@@ -7,15 +7,30 @@ const awsmobile = {
     "aws_cognito_region": "us-east-1",
     "aws_user_pools_id": "us-east-1_16d4h49IX",
     "aws_user_pools_web_client_id": "30at92c3ingq7lo0sk17doebrg",
-    "oauth": {},
+    "oauth": {
+        "domain": "jct1nwb3e9ze-staging.auth.us-east-1.amazoncognito.com",
+        "scope": [
+            "phone",
+            "email",
+            "openid",
+            "profile",
+            "aws.cognito.signin.user.admin"
+        ],
+        "redirectSignIn": "https://main.d3lkhv987rvk7f.amplifyapp.com/",
+        "redirectSignOut": "https://main.d3lkhv987rvk7f.amplifyapp.com/",
+        "responseType": "code"
+    },
+    "federationTarget": "COGNITO_USER_POOLS",
     "aws_cognito_username_attributes": [],
-    "aws_cognito_social_providers": [],
+    "aws_cognito_social_providers": [
+        "GOOGLE"
+    ],
     "aws_cognito_signup_attributes": [
         "EMAIL"
     ],
-    "aws_cognito_mfa_configuration": "OFF",
+    "aws_cognito_mfa_configuration": "OPTIONAL",
     "aws_cognito_mfa_types": [
-        "SMS"
+        "TOTP"
     ],
     "aws_cognito_password_protection_settings": {
         "passwordPolicyMinLength": 8,
