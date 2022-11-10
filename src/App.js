@@ -115,7 +115,6 @@ const App = ({ signOut }) => {
                   {note.name}
                 </Text>
                 <Text as="span">{note.description}</Text>
-                {console.log(note)}
                 {note.image && (
                     <Image
                         src={note.image}

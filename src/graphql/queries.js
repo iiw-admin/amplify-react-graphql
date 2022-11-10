@@ -54,6 +54,7 @@ export const listNotes = /* GraphQL */ `
         description
         createdAt
         updatedAt
+        image
       }
       nextToken
     }
