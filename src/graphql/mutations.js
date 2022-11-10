@@ -54,6 +54,7 @@ export const createNote = /* GraphQL */ `
       description
       createdAt
       updatedAt
+      image
     }
   }
 `;
