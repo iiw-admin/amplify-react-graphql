@@ -1,3 +1,28 @@
+.amplify-flex {
+  border: 1px solid black !important;
+}
+
+#searchResults {
+
+}
+
+.searchResult {
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 .App {
   text-align: center;
 }
@@ -14,15 +39,24 @@
 }
 
 .App-header {
-  background-color: #282c34;
-  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+  font-size: 15px;
+  border-top: 1px solid black;
 }
+
+  .App-header > * {
+    margin-right: 4vh;
+    margin-top: 3vh;
+    padding-right: 2vh;
+    padding-top: 2vh;
+    cursor: pointer;
+    /*border: 1px solid #cdcdcd;*/
+    /*padding: 8px 9px;*/
+    /*border-radius: 50%;*/
+  }
 
 .App-link {
   color: #61dafb;

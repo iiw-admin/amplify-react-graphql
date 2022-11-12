@@ -1,3 +1,4 @@
+import { ThemeProvider, Theme } from '@aws-amplify/ui-react';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
@@ -15,9 +16,31 @@ Storage.configure({
 
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
+
+const theme: Theme = {
+  // name: 'autocomplete-theme',
+  // tokens: {
+  //   components: {
+  //     autocomplete: {
+  //       menu: {
+  //         option: {
+  //           _active: {
+  //             backgroundColor: {
+  //               value: '#C00',
+  //             },
+  //           },
+  //         },
+  //       },
+  //     },
+  //   },
+  // },
+};
+
 root.render(
   <React.StrictMode>
-    <App />
+    <ThemeProvider theme={theme} colorMode="light">
+      <App />
+    </ThemeProvider>
   </React.StrictMode>
 );
 
