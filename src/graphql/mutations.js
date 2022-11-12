@@ -6,7 +6,7 @@ export const createMedia = /* GraphQL */ `
         $input: CreateMediaInput!
         $condition: ModelMediaConditionInput
     ) {
-        createTodo(input: $input, condition: $condition) {
+        createMedia(input: $input, condition: $condition) {
             id
             name
         }
