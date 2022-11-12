@@ -15,9 +15,9 @@
           "passwordPolicyMinLength": 8,
           "passwordPolicyCharacters": []
         },
-        "mfaConfiguration": "OPTIONAL",
+        "mfaConfiguration": "OFF",
         "mfaTypes": [
-          "TOTP"
+          "SMS"
         ],
         "verificationMechanisms": [
           "EMAIL"
@@ -41,13 +41,6 @@
           "additionalAuthenticationProviders": []
         }
       }
-    }
-  },
-  "storage": {
-    "imagestorage": {
-      "service": "S3",
-      "providerPlugin": "awscloudformation",
-      "dependsOn": []
     }
   }
 }
