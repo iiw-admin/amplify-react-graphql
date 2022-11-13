@@ -1,13 +1,15 @@
 {
   "auth": {
-    "amplifyreactgraphql1dae77e8": {
+    "iiw76684d3c": {
       "service": "Cognito",
       "providerPlugin": "awscloudformation",
       "dependsOn": [],
       "customAuth": false,
       "frontendAuthConfig": {
         "socialProviders": [],
-        "usernameAttributes": [],
+        "usernameAttributes": [
+          "EMAIL"
+        ],
         "signupAttributes": [
           "EMAIL"
         ],
@@ -26,7 +28,7 @@
     }
   },
   "api": {
-    "amplifyreactgraphql": {
+    "iiw": {
       "service": "AppSync",
       "providerPlugin": "awscloudformation",
       "dependsOn": [],
@@ -35,14 +37,19 @@
           "defaultAuthentication": {
             "authenticationType": "API_KEY",
             "apiKeyConfig": {
-              "apiKeyExpirationDays": 7,
-              "apiKeyExpirationDate": "2022-11-19T19:22:22.302Z",
-              "description": "Default"
+              "apiKeyExpirationDays": 7
             }
           },
           "additionalAuthenticationProviders": []
         }
       }
+    }
+  },
+  "storage": {
+    "imgstorage": {
+      "service": "S3",
+      "providerPlugin": "awscloudformation",
+      "dependsOn": []
     }
   }
 }

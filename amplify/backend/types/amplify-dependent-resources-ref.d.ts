@@ -1,6 +1,6 @@
 export type AmplifyDependentResourcesAttributes = {
     "auth": {
-        "amplifyreactgraphql1dae77e8": {
+        "iiw76684d3c": {
             "IdentityPoolId": "string",
             "IdentityPoolName": "string",
             "UserPoolId": "string",
@@ -11,10 +11,16 @@ export type AmplifyDependentResourcesAttributes = {
         }
     },
     "api": {
-        "amplifyreactgraphql": {
+        "iiw": {
             "GraphQLAPIKeyOutput": "string",
             "GraphQLAPIIdOutput": "string",
             "GraphQLAPIEndpointOutput": "string"
+        }
+    },
+    "storage": {
+        "imgstorage": {
+            "BucketName": "string",
+            "Region": "string"
         }
     }
 }
