@@ -33,3 +33,8 @@
 #menu_LoggedOut {
     border: 1px solid red;
 }
+
+.error {
+    background-color: palevioletred;
+    padding: 5px;
+}
