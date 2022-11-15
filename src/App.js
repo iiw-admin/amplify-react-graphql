@@ -22,17 +22,30 @@ import {
 import { listMedia } from "./graphql/queries";
 import {
   createMedia as createMediaMutation,
-  deleteMedia as deleteMediaMutation,
 } from "./graphql/mutations";
-import { darkTheme, lightTheme } from "./themes";
+import { darkTheme } from "./themes/darkTheme";
+import { lightTheme } from "./themes/lightTheme";
 Amplify.configure(config);
 
+let searchTimeout = null;
+
 const App = () => {
+  /*
+   * Enums
+   */
+  const MENU_MODES = {
+    LOGIN: 1,
+    CONFIRM_ACCOUNT: 2,
+    RESET_PASSWORD: 3,
+    AUTHENTICATED: 4,
+  }
+
   /*
    * Search
    */
   const [titles, setTitles] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [searchResultsComponent, setSearchResultsComponent] = useState(<></>);
 
   /*
    * Account and Login
@@ -41,24 +54,38 @@ const App = () => {
   const [loggedInUserEmail, setLoggedInUserEmail] = useState("");
   const [isAccountConfirmed, setIsAccountConfirmed] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
+  const [menuMode, setMenuMode] = useState( MENU_MODES.LOGIN );
 
   /*
    * Page control
    */
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [showMenu, setShowMenu] = useState(true);
-  const [loginError, setLoginError] = useState("Problem something error happens. Please try again.");
+  const [showMenu, setShowMenu] = useState(false);
+  const [loginError, setLoginError] = useState(null);
   const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
-    // fetchTitles();
     onAppLoad();
   }, []);
 
   useEffect(() => {
     checkVerificationCode();
   }, [verificationCode]);
+
+  useEffect(() => {
+    if( searchTimeout ) {
+      clearTimeout( searchTimeout );
+    }
+    searchTimeout = setTimeout(() => {
+      if( searchTerm ) {
+        fetchTitles()
+            .then(() => {
+              console.log("Done fetching titles");
+            })
+      }
+    }, 300);
+  }, [searchTerm]);
 
   const menuReference = useRef(null)
 
@@ -82,6 +109,7 @@ const App = () => {
       setIsAccountConfirmed(false);
       setLoggedInUserEmail( user.username );
       setIsUserLoggedIn( true );
+      setMenuMode( MENU_MODES.CONFIRM_ACCOUNT );
     } catch (error) {
       console.log('error signing up:', error);
       /* Possible errors:
@@ -89,6 +117,13 @@ const App = () => {
        * InvalidPasswordException: Password did not conform with policy: Password not long enough
        * UserNotConfirmedException: User is not confirmed.
        */
+      switch( error.name ) {
+        case "UsernameExistsException":
+          setLoginError("That email is already in use.");
+          break;
+        default:
+          break;
+      }
     }
   }
 
@@ -96,18 +131,33 @@ const App = () => {
     try {
       const user = await Auth.signIn(username, password);
       setIsUserLoggedIn(true);
-      setIsAccountConfirmed(user.attributes.email_verified);
       setLoggedInUserEmail( user.attributes.email );
+      setMenuMode( MENU_MODES.AUTHENTICATED );
       setUsername("");
       setPassword("");
       console.log("🎉 Logged in!");
     } catch (error) {
-      if( error.name === "UserNotConfirmedException" ) {
-        setLoggedInUserEmail( username );
-        setIsAccountConfirmed(false);
-        setIsUserLoggedIn( true );
-        resendConfirmationCode();
-        console.log("⚙️ Sending Confirmation Code");
+      console.log( "e", JSON.stringify( error ), error.toString() );
+      switch( error.name ) {
+        case "NotAuthorizedException":
+          if( error.toString().indexOf( "User is disabled" ) > -1 ) {
+            setLoginError("Account disabled.");
+          } else {
+            setLoginError("Incorrect username or password.");
+          }
+          break;
+        case "UserNotFoundException":
+          setLoginError("Incorrect username or password.");
+          break;
+        case "UserNotConfirmedException":
+          setMenuMode( MENU_MODES.CONFIRM_ACCOUNT );
+          setLoggedInUserEmail( username );
+          setIsAccountConfirmed(false);
+          resendConfirmationCode();
+          console.log("⚙️ Sending Confirmation Code");
+          break;
+        default:
+          break;
       }
       console.log('😢 Error signing in', error);
     }
@@ -119,6 +169,7 @@ const App = () => {
       setIsAccountConfirmed( false );
       setLoggedInUserEmail( null );
       setIsUserLoggedIn( false );
+      setMenuMode( MENU_MODES.LOGIN );
       console.log('👋🏼 Signed out. Bye!');
     } catch (error) {
       console.log('💫 Error signing out: ', error);
@@ -131,6 +182,7 @@ const App = () => {
       setIsAccountConfirmed( user.attributes.email_verified );
       setLoggedInUserEmail( user.attributes.email );
       setIsUserLoggedIn(true);
+      setMenuMode( MENU_MODES.AUTHENTICATED );
       console.log('👍 Already signed in!');
     } catch {
       // Do nothing
@@ -147,10 +199,12 @@ const App = () => {
 
   const checkVerificationCode = async () => {
     if (verificationCode.length === 6) {
+      console.log(`Checking Verification Code ${verificationCode}`);
       try {
         await Auth.confirmSignUp(loggedInUserEmail, verificationCode);
         setIsAccountConfirmed(true);
         setIsUserLoggedIn(true);
+        setMenuMode( MENU_MODES.AUTHENTICATED );
       } catch (error) {
         console.log('error confirming sign up', error);
       }
@@ -159,8 +213,22 @@ const App = () => {
 
   async function fetchTitles() {
     const apiData = await API.graphql({ query: listMedia });
-    const notesFromAPI = apiData.data.listMedia.items;
-    setTitles(notesFromAPI);
+    const itemsFromAPI = apiData.data.listMedia.items;
+    setTitles(itemsFromAPI);
+
+    console.log("📡 API Data", apiData);
+
+    const searchResults = (
+        <Flex id="searchResults" justifyContent={"center"} direction={"column"}>
+          {itemsFromAPI.filter(searchFilter).map((title) => {
+            return (
+                <View key={title.id} className={"searchResult"}>{title.title}</View>
+            )
+          })}
+        </Flex>
+    )
+
+    setSearchResultsComponent( searchResults );
   }
 
   async function createMedia(event) {
@@ -178,31 +246,18 @@ const App = () => {
     event.target.reset();
   }
 
-  async function deleteMedia({ id }) {
-    const newNotes = titles.filter((note) => note.id !== id);
-    setTitles(newNotes);
-    await API.graphql({
-      query: deleteMediaMutation,
-      variables: { input: { id } },
-    });
-  }
-
   const searchFilter = ( title ) => {
     if( !searchTerm ) {
-      return true;
+      return false;
     }
     return title.title.toLowerCase().includes( searchTerm.toLowerCase() );
   }
 
   const SearchResults = () => {
     return (
-        <Flex id="searchResults" justifyContent={"center"} direction={"column"}>
-          {titles.filter(searchFilter).map((title) => {
-            return (
-                <View key={title.id} className={"searchResult"}>{title.title}</View>
-            )
-          })}
-        </Flex>
+        !searchTerm
+            ? null
+            : searchResultsComponent
     )
   };
 
@@ -223,36 +278,9 @@ const App = () => {
             { showMenu ? (
                 <View id={"menu"} ref={menuReference} key={"userPopoutMenu"}>
                   <Flex direction={"column"} alignItems={"left"}>
-                    { loggedInUserEmail
-                        ? ( <>{loggedInUserEmail}</> )
-                        : null
-                    }
-                    { isUserLoggedIn
-                        ? (
-                            <>
-                            { !isAccountConfirmed
-                                ? (
-                                  <>
-                                    <View>
-                                      <Text>A confirmation code has been sent to the email above. Enter it below to confirm your account and log in.</Text>
-                                      <TextField
-                                          name="verification_code"
-                                          placeholder="Verification Code"
-                                          label="Verification Code"
-                                          labelHidden
-                                          variation="quiet"
-                                          required
-                                          value={verificationCode}
-                                          onChange={(event) => setVerificationCode(event.target.value)}
-                                      />
-                                    </View>
-                                  </>
-                                )
-                                : <Link href={"/account"}>Manage Account</Link>
-                            }
-                            </>
-                        )
-                        : (
+                    {
+                      {
+                        [MENU_MODES.LOGIN]: (
                             <>
                               <TextField
                                   name="login_username"
@@ -276,15 +304,37 @@ const App = () => {
                                   value={password}
                                   onChange={(event) => { event.preventDefault(); setPassword(event.target.value); }}
                               />
-                              <Text className="error" >{loginError}</Text>
+                              <Text>{loginError}</Text>
                               <Button onClick={signIn}>Sign In</Button>
                               <Button onClick={signUp}>Create Account</Button>
+                              <Text>Forgot Password</Text>
                             </>
-                        )
+                        ),
+                        [MENU_MODES.CONFIRM_ACCOUNT]: (
+                            <View>
+                              <Text>A confirmation code has been sent to {username}. Enter it below to confirm your account and log in.</Text>
+                              <TextField
+                                  name="verification_code"
+                                  placeholder="Verification Code"
+                                  label="Verification Code"
+                                  labelHidden
+                                  variation="quiet"
+                                  required
+                                  value={verificationCode}
+                                  onChange={(event) => setVerificationCode(event.target.value)}
+                              />
+                            </View>
+                        ),
+                        [MENU_MODES.RESET_PASSWORD]: (<></>),
+                        [MENU_MODES.AUTHENTICATED]: (
+                            <>
+                              <>{loggedInUserEmail}</>
+                              <Link href={"/account"}>Manage Account</Link>
+                              <Button onClick={signOut}>Sign Out</Button>
+                            </>
+                        ),
+                      }[menuMode]
                     }
-                    { isUserLoggedIn ? (
-                      <Button onClick={signOut}>Sign Out</Button>
-                    ) : null }
                   </Flex>
                 </View>
             ) : null }

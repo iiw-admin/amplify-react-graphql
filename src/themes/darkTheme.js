@@ -3,7 +3,7 @@ export const darkTheme = {
   tokens: {
     colors: {
       font: {
-        primary: { value: '#008080' },
+        primary: { value: 'white' },
         // ...
       },
     },
