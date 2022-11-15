@@ -1,0 +1,35 @@
+:root {
+    --header-height: 2vh;
+}
+
+#navigation {
+    padding: var(--header-height) 3vw 0 0;
+    position: fixed;
+    width: 100%;
+    z-index: 10;
+}
+
+#content {
+    padding-top: calc( var(--header-height) + 8vh );
+    z-index: 1;
+}
+
+#userBadge:hover {
+    cursor: pointer;
+}
+
+#menu {
+    border: 1px solid black;
+    text-align: left;
+    background-color: white;
+    max-width: 25vw;
+    padding: 20px;
+}
+
+#menu_LoggedIn {
+    border: 1px solid green;
+}
+
+#menu_LoggedOut {
+    border: 1px solid red;
+}

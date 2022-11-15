@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from "react";
+import { Amplify, API, Auth } from "aws-amplify";
+import config from './aws-exports';
+import React, { useState, useEffect, useRef } from "react";
 import "./App.css";
+import "./Styles.css";
 import "@aws-amplify/ui-react/styles.css";
-import { API } from "aws-amplify";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUser } from '@fortawesome/free-solid-svg-icons'
 import {
@@ -13,21 +15,142 @@ import {
   View,
   Badge,
   SearchField,
-  withAuthenticator,
+  withAuthenticator, Link, PasswordField,
 } from "@aws-amplify/ui-react";
 import { listMedia } from "./graphql/queries";
 import {
   createMedia as createMediaMutation,
   deleteMedia as deleteMediaMutation,
 } from "./graphql/mutations";
+Amplify.configure(config);
 
-const App = ({ signOut }) => {
+const App = () => {
+  /*
+   * Search
+   */
   const [titles, setTitles] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
 
+  /*
+   * Account and Login
+   */
+  const [isUserLoggedIn, setIsUserLoggedIn] = useState(false);
+  const [loggedInUserEmail, setLoggedInUserEmail] = useState("");
+  const [isAccountConfirmed, setIsAccountConfirmed] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+
+  /*
+   * Page control
+   */
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [showMenu, setShowMenu] = useState(false);
+
   useEffect(() => {
-    fetchTitles();
+    // fetchTitles();
+    onAppLoad();
   }, []);
+
+  useEffect(() => {
+    checkVerificationCode();
+  }, [verificationCode]);
+
+  const menuReference = useRef(null)
+
+  const closeOpenMenus = (e)=> {
+    if( menuReference.current && showMenu && !menuReference.current.contains( e.target ) ) {
+      setShowMenu( false )
+    }
+  }
+
+  document.addEventListener('mousedown',closeOpenMenus)
+
+  async function signUp() {
+    try {
+      const { user } = await Auth.signUp({
+        username,
+        password,
+        autoSignIn: { // optional - enables auto sign in after user is confirmed
+          enabled: true,
+        }
+      });
+      setIsAccountConfirmed(false);
+      setLoggedInUserEmail( user.username );
+      setIsUserLoggedIn( true );
+    } catch (error) {
+      console.log('error signing up:', error);
+      /* Possible errors:
+       * UsernameExistsException: An account with the given email already exists.
+       * InvalidPasswordException: Password did not conform with policy: Password not long enough
+       * UserNotConfirmedException: User is not confirmed.
+       */
+    }
+  }
+
+  async function signIn() {
+    try {
+      const user = await Auth.signIn(username, password);
+      setIsUserLoggedIn(true);
+      setIsAccountConfirmed(user.attributes.email_verified);
+      setLoggedInUserEmail( user.attributes.email );
+      setUsername("");
+      setPassword("");
+      console.log("🎉 Logged in!");
+    } catch (error) {
+      if( error.name === "UserNotConfirmedException" ) {
+        setLoggedInUserEmail( username );
+        setIsAccountConfirmed(false);
+        setIsUserLoggedIn( true );
+        resendConfirmationCode();
+        console.log("⚙️ Sending Confirmation Code");
+      }
+      console.log('😢 Error signing in', error);
+    }
+  }
+
+  async function signOut() {
+    try {
+      await Auth.signOut();
+      setIsAccountConfirmed( false );
+      setLoggedInUserEmail( null );
+      setIsUserLoggedIn( false );
+      console.log('👋🏼 Signed out. Bye!');
+    } catch (error) {
+      console.log('💫 Error signing out: ', error);
+    }
+  }
+
+  async function onAppLoad() {
+    try {
+      const user = await Auth.currentAuthenticatedUser();
+      setIsAccountConfirmed( user.attributes.email_verified );
+      setLoggedInUserEmail( user.attributes.email );
+      setIsUserLoggedIn(true);
+      console.log('👍 Already signed in!');
+    } catch {
+      // Do nothing
+    }
+  }
+
+  async function resendConfirmationCode() {
+    try {
+      await Auth.resendSignUp(username);
+    } catch (err) {
+      // TODO ????
+    }
+  }
+
+  const checkVerificationCode = async () => {
+    if (verificationCode.length === 6) {
+      try {
+        await Auth.confirmSignUp(loggedInUserEmail, verificationCode);
+        setIsAccountConfirmed(true);
+        setIsUserLoggedIn(true);
+      } catch (error) {
+        console.log('error confirming sign up', error);
+      }
+    }
+  }
 
   async function fetchTitles() {
     const apiData = await API.graphql({ query: listMedia });
@@ -63,17 +186,96 @@ const App = ({ signOut }) => {
     if( !searchTerm ) {
       return true;
     }
-    return title.title.toLowerCase().includes( searchTerm );
+    return title.title.toLowerCase().includes( searchTerm.toLowerCase() );
   }
+
+  const SearchResults = () => {
+    return (
+        <Flex id="searchResults" justifyContent={"center"} direction={"column"}>
+          {titles.filter(searchFilter).map((title) => {
+            return (
+                <View key={title.id} className={"searchResult"}>{title.title}</View>
+            )
+          })}
+        </Flex>
+    )
+  };
 
   return (
       <View className="App">
-        <Flex className="" direction="row-reverse" wrap="nowrap" alignItems="right">
-          <View>
-            <Badge size={"large"}><FontAwesomeIcon icon={faUser} /></Badge>
+        <Flex id="navigation" direction="column" wrap="nowrap" alignItems="flex-end">
+          <View id={"userBadge"}>
+            <Badge size={"large"} onClick={() => setShowMenu(!showMenu)}><FontAwesomeIcon icon={faUser} /></Badge>
           </View>
+          { showMenu ? (
+              <View id={"menu"} ref={menuReference} key={"userPopoutMenu"}>
+                <Flex direction={"column"} alignItems={"left"}>
+                  { loggedInUserEmail
+                      ? ( <>{loggedInUserEmail}</> )
+                      : null
+                  }
+                  { isUserLoggedIn
+                      ? (
+                          <>
+                          { !isAccountConfirmed
+                              ? (
+                                <>
+                                  <View>
+                                    <Text>A confirmation code has been sent to the email above. Enter it below to confirm your account and log in.</Text>
+                                    <TextField
+                                        name="verification_code"
+                                        placeholder="Verification Code"
+                                        label="Verification Code"
+                                        labelHidden
+                                        variation="quiet"
+                                        required
+                                        value={verificationCode}
+                                        onChange={(event) => setVerificationCode(event.target.value)}
+                                    />
+                                  </View>
+                                </>
+                              )
+                              : <Link href={"/account"}>Manage Account</Link>
+                          }
+                          </>
+                      )
+                      : (
+                          <>
+                            <TextField
+                                name="login_username"
+                                key={"login_username"}
+                                placeholder="Email"
+                                label="Your Email Address"
+                                labelHidden
+                                variation="quiet"
+                                required
+                                value={username}
+                                onChange={(event) => { event.preventDefault(); setUsername(event.target.value); }}
+                            />
+                            <PasswordField
+                                name="login_password"
+                                key={"login_password"}
+                                placeholder="Password"
+                                label="Your Password"
+                                labelHidden
+                                variation="quiet"
+                                required
+                                value={password}
+                                onChange={(event) => { event.preventDefault(); setPassword(event.target.value); }}
+                            />
+                            <Button onClick={signIn}>Sign In</Button>
+                            <Button onClick={signUp}>Create Account</Button>
+                          </>
+                      )
+                  }
+                  { isUserLoggedIn ? (
+                    <Button onClick={signOut}>Sign Out</Button>
+                  ) : null }
+                </Flex>
+              </View>
+          ) : null }
         </Flex>
-        <Flex className="" direction="column" alignItems="center" justifyContent="center">
+        <Flex id="content" direction="column" alignItems="center" justifyContent="center">
           <Heading level={1}>Title</Heading>
           <SearchField
               label="Search"
@@ -83,17 +285,11 @@ const App = ({ signOut }) => {
               onChange={(e) => setSearchTerm(e.target.value)}
           />
         </Flex>
-        <Flex id="searchResults" justifyContent={"center"} direction={"column"}>
-          {titles.filter(searchFilter).map((title) => {
-            return (
-                <View key={title.id} className={"searchResult"}>{title.title}</View>
-            )
-          })}
-        </Flex>
+        <SearchResults />
         <View as="form" margin="3rem 0" onSubmit={createMedia}>
           <TextField
               name="title"
-              placeholder="Entry Title"
+              placeholder="Add a new title"
               label="Entry Title"
               labelHidden
               variation="quiet"
@@ -107,4 +303,4 @@ const App = ({ signOut }) => {
   );
 };
 
-export default withAuthenticator(App);
+export default App;
