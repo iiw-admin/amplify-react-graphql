@@ -5,7 +5,7 @@ import "./App.css";
 import "./Styles.css";
 import "@aws-amplify/ui-react/styles.css";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUser, faSun, faMoon } from '@fortawesome/free-solid-svg-icons'
+import { faUser, faSun, faMoon, faX } from '@fortawesome/free-solid-svg-icons'
 import {
   Button,
   Flex,
@@ -22,6 +22,7 @@ import {
 import { listMedia } from "./graphql/queries";
 import {
   createMedia as createMediaMutation,
+  deleteMedia as deleteMediaMutation,
 } from "./graphql/mutations";
 import { darkTheme } from "./themes/darkTheme";
 import { lightTheme } from "./themes/lightTheme";
@@ -30,6 +31,11 @@ Amplify.configure(config);
 let searchTimeout = null;
 
 const App = () => {
+  /*
+   * Constants
+   */
+  const maxSearchResults = 5;
+
   /*
    * Enums
    */
@@ -55,6 +61,12 @@ const App = () => {
   const [isAccountConfirmed, setIsAccountConfirmed] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
   const [menuMode, setMenuMode] = useState( MENU_MODES.LOGIN );
+
+  // This variable should only be used for insecure tasks, such as determineing
+  // whether to show the *option* to delete a media entry. The user
+  // should be looked up from the server again to determine whether or not it
+  // actually has permission to perform the action.
+  const [isAdministrator, setIsAdministrator] = useState(false);
 
   /*
    * Page control
@@ -87,6 +99,10 @@ const App = () => {
     }, 300);
   }, [searchTerm]);
 
+  useEffect(() => {
+
+  }, [titles]);
+
   const menuReference = useRef(null)
 
   const closeOpenMenus = (e)=> {
@@ -96,6 +112,10 @@ const App = () => {
   }
 
   document.addEventListener('mousedown',closeOpenMenus)
+
+  /*
+   * Authentication
+   */
 
   async function signUp() {
     try {
@@ -135,6 +155,7 @@ const App = () => {
       setMenuMode( MENU_MODES.AUTHENTICATED );
       setUsername("");
       setPassword("");
+      setIsAdministrator( user.signInUserSession.accessToken.payload["cognito:groups"].includes("Administrators") );
       console.log("🎉 Logged in!");
     } catch (error) {
       console.log( "e", JSON.stringify( error ), error.toString() );
@@ -183,7 +204,9 @@ const App = () => {
       setLoggedInUserEmail( user.attributes.email );
       setIsUserLoggedIn(true);
       setMenuMode( MENU_MODES.AUTHENTICATED );
+      setIsAdministrator( user.signInUserSession.accessToken.payload["cognito:groups"].includes("Administrators") );
       console.log('👍 Already signed in!');
+      console.log( user );
     } catch {
       // Do nothing
     }
@@ -211,55 +234,112 @@ const App = () => {
     }
   }
 
+  /*
+   * Media Management
+   */
+
   async function fetchTitles() {
     const apiData = await API.graphql({ query: listMedia });
     const itemsFromAPI = apiData.data.listMedia.items;
     setTitles(itemsFromAPI);
 
     console.log("📡 API Data", apiData);
-
-    const searchResults = (
-        <Flex id="searchResults" justifyContent={"center"} direction={"column"}>
-          {itemsFromAPI.filter(searchFilter).map((title) => {
-            return (
-                <View key={title.id} className={"searchResult"}>{title.title}</View>
-            )
-          })}
-        </Flex>
-    )
-
-    setSearchResultsComponent( searchResults );
   }
 
-  async function createMedia(event) {
-    event.preventDefault();
-    const form = new FormData(event.target);
+  async function createMedia() {
+    if( !searchTerm ) {
+      return;
+    }
+
+    console.log(`➕Adding ${searchTerm} to the database`);
     const data = {
-      title: form.get("title"),
-      // description: form.get("description"),
+      title: searchTerm,
     };
     await API.graphql({
       query: createMediaMutation,
       variables: { input: data },
     });
     fetchTitles();
-    event.target.reset();
   }
 
-  const searchFilter = ( title ) => {
+  const deleteMedia = async (mediaId) => {
+    console.log( "Deleting media ID", mediaId);
+    const data = {
+      id: mediaId
+    };
+    await Auth.currentAuthenticatedUser()
+        .then( user => {
+          console.log("❓Verifying user is authorized to delete media...");
+          const isAdmin = user.signInUserSession.accessToken.payload["cognito:groups"].includes("Administrators")
+          if( !isAdmin ) {
+            console.log("❌ You must be an administrator to delete media.");
+            throw "Unauthorized Delete Attempt";
+          }
+          console.log("👍 User is authorized to delete media.");
+          return API.graphql({
+            query: deleteMediaMutation,
+            variables: { input: data },
+          });
+        })
+        .then( deleteResult => {
+          if( ( deleteResult.data?.errors || [] ).length ) {
+            throw deleteResult.data.errors[0].message;
+          }
+          console.log("✅ Deleted media.");
+
+          const newTitles = titles.filter( title => title.id !== mediaId );
+          setTitles( newTitles );
+        })
+        .catch( error => {
+          console.log( "Error deleting media", error );
+        });
+  }
+
+  const searchFilter = ( title, index ) => {
     if( !searchTerm ) {
       return false;
     }
     return title.title.toLowerCase().includes( searchTerm.toLowerCase() );
   }
 
-  const SearchResults = () => {
+  const searchSort = (a, b) => {
+    return 1;
+  }
+
+  const searchMap = searchResult => {
     return (
-        !searchTerm
-            ? null
-            : searchResultsComponent
+        <SearchResult {...searchResult} />
     )
   };
+
+  const SearchResults = (props) => {
+    return (
+        <Flex id="searchResults" justifyContent={"center"} direction={"column"}>
+          {
+            props.searchResults
+                .filter( searchFilter )
+                .sort( searchSort )
+                .filter( (title, index) => index < maxSearchResults )  // Limit to 5 results
+                .map( searchMap )
+          }
+        </Flex>
+    )
+  };
+
+  const SearchResult = (props) => {
+    const matchIndex = props.title.search(new RegExp(searchTerm, "i"));
+    return (
+        <Flex class={"nogap"} direction={"row"} justifyContent={"center"} key={props.id} className={"searchResult"}>
+          { isAdministrator
+              ? ( <View onClick={() => deleteMedia(props.id)}><FontAwesomeIcon icon={faX} /></View> )
+              : null
+          }
+          {props.title.substring(0, matchIndex)}
+          <span className={"searchHighlight"}>{props.title.substring(matchIndex, matchIndex + searchTerm.length)}</span>
+          {props.title.substring(matchIndex + searchTerm.length)}
+        </Flex>
+    )
+  }
 
   return (
       <ThemeProvider theme={darkMode ? darkTheme : lightTheme}>
@@ -270,14 +350,14 @@ const App = () => {
                 <FontAwesomeIcon icon={faUser} />
               </Badge>
             </View>
-            <View id={"darkModeToggle"}>
-              <Badge size={"large"} onClick={() => { setDarkMode( !darkMode )}}>
-                <FontAwesomeIcon icon={darkMode ? faSun : faMoon} />
-              </Badge>
-            </View>
             { showMenu ? (
                 <View id={"menu"} ref={menuReference} key={"userPopoutMenu"}>
                   <Flex direction={"column"} alignItems={"left"}>
+                    <View id={"darkModeToggle"}>
+                      <Badge size={"large"} onClick={() => { setDarkMode( !darkMode )}}>
+                        <FontAwesomeIcon icon={darkMode ? faSun : faMoon} />
+                      </Badge>
+                    </View>
                     {
                       {
                         [MENU_MODES.LOGIN]: (
@@ -349,20 +429,11 @@ const App = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
             />
           </Flex>
-          <SearchResults />
-          <View as="form" margin="3rem 0" onSubmit={createMedia}>
-            <TextField
-                name="title"
-                placeholder="Add a new title"
-                label="Entry Title"
-                labelHidden
-                variation="quiet"
-                required
-            />
-            <Button type="submit" variation="primary">
-              Add to Database
-            </Button>
-          </View>
+          { isUserLoggedIn && searchTerm
+              ? <Link className={"searchResult"} onClick={createMedia}>Add to Database</Link>
+              : null
+          }
+          <SearchResults searchResults={titles} />
         </View>
       </ThemeProvider>
   );

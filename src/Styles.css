@@ -38,3 +38,46 @@
     background-color: palevioletred;
     padding: 5px;
 }
+
+#navigation {
+    /*background-color: #ffe9b9;*/
+    z-index: 1;
+}
+
+#content {
+    /*background-color: #ffabab;*/
+    z-index: 10;
+}
+
+#createMediaForm {
+    /*background-color: #d0ffc3;*/
+}
+
+#searchResults {
+    /*background-color: #a4dcff;*/
+    /*gap: 0px;*/
+}
+
+.amplify-link.searchResult {
+    margin: 20px 0 10px 0;
+}
+
+.searchResult {
+    margin: 10px 0px;
+}
+
+.searchResult:last-child {
+    margin-bottom: 20px;
+}
+
+.searchHighlight {
+    font-weight: bold;
+}
+
+.nogap {
+    gap: 0 !important;
+}
+
+.flexItem {
+    flex: 0 1 auto;
+}
