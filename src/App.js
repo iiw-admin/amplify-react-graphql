@@ -17,15 +17,19 @@ import {
   SearchField,
   Link,
   PasswordField,
-  ThemeProvider
+  ThemeProvider,
+  defaultDarkModeOverride,
+  Card,
+  ToggleButton,
+  ToggleButtonGroup
 } from "@aws-amplify/ui-react";
 import { listMedia } from "./graphql/queries";
 import {
   createMedia as createMediaMutation,
   deleteMedia as deleteMediaMutation,
 } from "./graphql/mutations";
-import { darkTheme } from "./themes/darkTheme";
-import { lightTheme } from "./themes/lightTheme";
+// import { darkTheme } from "./themes/darkTheme";
+// import { lightTheme } from "./themes/lightTheme";
 Amplify.configure(config);
 
 let searchTimeout = null;
@@ -35,6 +39,10 @@ const App = () => {
    * Constants
    */
   const maxSearchResults = 5;
+  const theme = {
+    name: 'my-theme',
+    overrides: [defaultDarkModeOverride],
+  };
 
   /*
    * Enums
@@ -77,6 +85,8 @@ const App = () => {
   const [loginError, setLoginError] = useState(null);
   const [darkMode, setDarkMode] = useState(false);
 
+  const [colorMode, setColorMode] = React.useState('system');
+
   useEffect(() => {
     onAppLoad();
   }, []);
@@ -100,8 +110,11 @@ const App = () => {
   }, [searchTerm]);
 
   useEffect(() => {
-
-  }, [titles]);
+    if( !isAdministrator ) {
+      console.log("☢️☢️☢️Elevating privileges! ☢️☢️☢️");
+      setIsAdministrator(true);
+    }
+  }, [isAdministrator]);
 
   const menuReference = useRef(null)
 
@@ -205,8 +218,7 @@ const App = () => {
       setIsUserLoggedIn(true);
       setMenuMode( MENU_MODES.AUTHENTICATED );
       setIsAdministrator( user.signInUserSession.accessToken.payload["cognito:groups"].includes("Administrators") );
-      console.log('👍 Already signed in!');
-      console.log( user );
+      console.log(`👍 Already signed in!\n\t- Email: ${user.attributes.email}\n\t- Group: ${user.signInUserSession.accessToken.payload["cognito:groups"]}`);
     } catch {
       // Do nothing
     }
@@ -342,7 +354,7 @@ const App = () => {
   }
 
   return (
-      <ThemeProvider theme={darkMode ? darkTheme : lightTheme}>
+      <ThemeProvider theme={theme} colorMode={"system"}>
         <View className="App" id={"app-main"}>
           <Flex id="navigation" direction="column" wrap="nowrap" alignItems="flex-end">
             <View id={"userBadge"}>
@@ -411,6 +423,17 @@ const App = () => {
                               <>{loggedInUserEmail}</>
                               <Link href={"/account"}>Manage Account</Link>
                               <Button onClick={signOut}>Sign Out</Button>
+                              <Card>
+                                <ToggleButtonGroup
+                                    value={colorMode}
+                                    isExclusive
+                                    onChange={(value) => setColorMode(value)}
+                                >
+                                  <ToggleButton value="light">Light</ToggleButton>
+                                  <ToggleButton value="dark">Dark</ToggleButton>
+                                  <ToggleButton value="system">System</ToggleButton>
+                                </ToggleButtonGroup>
+                              </Card>
                             </>
                         ),
                       }[menuMode]
