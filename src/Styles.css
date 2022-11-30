@@ -2,6 +2,11 @@
     --header-height: 2vh;
 }
 
+.App {
+    height: 100vh;
+    background-color: var(--amplify-colors-orange-20);
+}
+
 #navigation {
     padding: var(--header-height) 3vw 0 0;
     position: fixed;
@@ -19,43 +24,36 @@
 }
 
 #menu {
-    border: 1px solid black;
     text-align: left;
-    background-color: white;
-    max-width: 25vw;
     padding: 20px;
 }
 
 #menu_LoggedIn {
-    border: 1px solid green;
+
 }
 
 #menu_LoggedOut {
-    border: 1px solid red;
+
 }
 
 .error {
-    background-color: palevioletred;
     padding: 5px;
 }
 
 #navigation {
-    /*background-color: #ffe9b9;*/
     z-index: 1;
 }
 
 #content {
-    /*background-color: #ffabab;*/
     z-index: 10;
 }
 
 #createMediaForm {
-    /*background-color: #d0ffc3;*/
+
 }
 
 #searchResults {
-    /*background-color: #a4dcff;*/
-    /*gap: 0px;*/
+
 }
 
 .amplify-link.searchResult {
@@ -80,4 +78,32 @@
 
 .flexItem {
     flex: 0 1 auto;
+}
+
+.bumpOut.right {
+    background-color: white;
+    border-left: 1px solid black;
+    position: fixed;
+    right:0px;
+    top:0px;
+    height:100%;
+    z-index: 20;
+    width: 300px;
+}
+
+.bumpOut.hidden.right {
+    right: -300px;
+}
+
+.slide.right {
+    transition: right .2s;
+}
+
+.bumpToggle {
+    position: relative;
+    top: 15px;
+}
+
+.bumpOut.right .bumpToggle {
+    left: -70px;
 }
